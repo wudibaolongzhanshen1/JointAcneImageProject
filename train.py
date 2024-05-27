@@ -1,4 +1,8 @@
+from torchvision.models import ResNet50_Weights
+
+import MyModel
 import dataset_processing
+import resnet50
 
 from resnet50 import *
 import torch
@@ -25,10 +29,12 @@ def load_pretrained_model(model):
     model.load_state_dict(model_dict,strict=False)
 
 
+
 device = torch.device("cuda")
 print(device)
 save_path = "models/ResNet.pth"
 batch_size = 32
+learning_rate = 0.001
 train_transform = transforms.Compose([
     transforms.RandomResizedCrop((224, 224)),
     transforms.RandomCrop(224),
@@ -55,13 +61,13 @@ validate_dataset = dataset_processing.DatasetProcessing('dataset/Classification/
 validate_loader = DataLoader(validate_dataset, batch_size=batch_size, shuffle=False,pin_memory=True,
                              collate_fn=dataset_processing.DatasetProcessing.collate_fn)
 validate_num = len(validate_dataset)
-net = ResNet.generate().to(device)
+net = MyModel.resnet50().to(device)
 load_pretrained_model(net)
 crossEntropyLoss = nn.CrossEntropyLoss().to(device)
 klLoss1 = nn.KLDivLoss().to(device)
 klLoss2 = nn.KLDivLoss().to(device)
 klLoss3 = nn.KLDivLoss().to(device)
-optim = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)
+optim = torch.optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=0.0005)
 best_acc = 0.0
 
 
@@ -82,6 +88,9 @@ print(f"第0轮acc为:{acc}")
 lambda_ = 0.6
 
 for epoch in range(1000):
+    if epoch%30 == 0:
+        learning_rate /= 2
+        optim = torch.optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=0.0005)
     net.train()
     running_loss = 0.0
     for step,(images, grade_labels, lesions_nums) in enumerate(train_loader):
