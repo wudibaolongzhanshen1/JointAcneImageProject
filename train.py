@@ -2,11 +2,28 @@ import dataset_processing
 
 from resnet50 import *
 import torch
-from torchvision import transforms, datasets
+from torchvision import transforms, datasets, models
 from torch.utils.data import DataLoader
 
 from transforms.affine_transforms import RandomRotate
 from utils import genLD
+
+
+def load_pretrained_model(model):
+    # 加载model，model是自己定义好的模型
+    resnet50 = models.resnet50(pretrained=True)
+    # 读取参数
+    pretrained_dict = resnet50.state_dict()
+    model_dict = model.state_dict()
+    # 将pretrained_dict里不属于model_dict的键剔除掉
+    pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+    pretrained_dict.pop('fc.weight')
+    pretrained_dict.pop('fc.bias')
+    # 更新现有的model_dict
+    model_dict.update(pretrained_dict,strict=False)
+    # 加载我们真正需要的state_dict
+    model.load_state_dict(model_dict,strict=False)
+
 
 device = torch.device("cuda")
 print(device)
@@ -39,6 +56,7 @@ validate_loader = DataLoader(validate_dataset, batch_size=batch_size, shuffle=Fa
                              collate_fn=dataset_processing.DatasetProcessing.collate_fn)
 validate_num = len(validate_dataset)
 net = ResNet.generate().to(device)
+load_pretrained_model(net)
 crossEntropyLoss = nn.CrossEntropyLoss().to(device)
 klLoss1 = nn.KLDivLoss().to(device)
 klLoss2 = nn.KLDivLoss().to(device)
@@ -101,6 +119,5 @@ for epoch in range(1000):
         best_acc = acc
         torch.save(net.state_dict(), save_path)
         print(f"第{epoch + 1}轮模型保存成功")
-
 
 
