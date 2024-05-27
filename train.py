@@ -11,7 +11,7 @@ from utils import genLD
 device = torch.device("cuda")
 print(device)
 save_path = "models/ResNet.pth"
-batch_size = 64
+batch_size = 32
 train_transform = transforms.Compose([
     transforms.RandomResizedCrop((224, 224)),
     transforms.RandomCrop(224),
@@ -45,8 +45,22 @@ klLoss2 = nn.KLDivLoss().to(device)
 klLoss3 = nn.KLDivLoss().to(device)
 optim = torch.optim.Adam(net.parameters(), lr=0.001)
 best_acc = 0.0
+
+
 net.eval()
-acc = 0.0
+grade_right_num = 0
+lesions_right_num = 0
+for step, (images, grade_labels, lesions_nums) in enumerate(validate_loader):
+    images = images.to(device)
+    grade_labels = grade_labels.numpy()
+    lesions_nums = lesions_nums.numpy()
+    cls, cnt, cnt2cls = net(images)
+    grade_right_num += (torch.argmax(cls, 1) == torch.from_numpy(grade_labels).to(device)).sum().item()
+    lesions_right_num += (torch.argmax(cnt2cls, 1) == torch.from_numpy(grade_labels).to(device)).sum().item()
+acc = (grade_right_num) / (validate_num)
+print(f"第0轮acc为:{acc}")
+
+
 lambda_ = 0.4
 
 for epoch in range(1000):
@@ -69,5 +83,23 @@ for epoch in range(1000):
         optim.step()
         running_loss += loss
     print(f"第{epoch + 1}轮running_loss为:{running_loss / len(train_loader)}")
-    torch.save(net.state_dict(), save_path)
+
+    net.eval()
+    grade_right_num = 0
+    lesions_right_num = 0
+    for step,(images, grade_labels, lesions_nums) in enumerate(validate_loader):
+        images = images.to(device)
+        grade_labels = grade_labels.numpy()
+        lesions_nums = lesions_nums.numpy()
+        cls, cnt, cnt2cls = net(images)
+        grade_right_num += (torch.argmax(cls, 1) == torch.from_numpy(grade_labels).to(device)).sum().item()
+        lesions_right_num += (torch.argmax(cnt2cls, 1) == torch.from_numpy(grade_labels).to(device)).sum().item()
+    acc = (grade_right_num) / (validate_num)
+    print(f"第{epoch + 1}轮acc为:{acc}")
+    if acc > best_acc:
+        best_acc = acc
+        torch.save(net.state_dict(), save_path)
+        print(f"第{epoch + 1}轮模型保存成功")
+
+
 
