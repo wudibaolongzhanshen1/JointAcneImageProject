@@ -43,7 +43,7 @@ crossEntropyLoss = nn.CrossEntropyLoss().to(device)
 klLoss1 = nn.KLDivLoss().to(device)
 klLoss2 = nn.KLDivLoss().to(device)
 klLoss3 = nn.KLDivLoss().to(device)
-optim = torch.optim.Adam(net.parameters(), lr=0.001)
+optim = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)
 best_acc = 0.0
 
 
@@ -61,7 +61,7 @@ acc = (grade_right_num) / (validate_num)
 print(f"第0轮acc为:{acc}")
 
 
-lambda_ = 0.4
+lambda_ = 0.6
 
 for epoch in range(1000):
     net.train()
@@ -87,6 +87,7 @@ for epoch in range(1000):
     net.eval()
     grade_right_num = 0
     lesions_right_num = 0
+    acc = 0
     for step,(images, grade_labels, lesions_nums) in enumerate(validate_loader):
         images = images.to(device)
         grade_labels = grade_labels.numpy()
